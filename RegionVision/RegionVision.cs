@@ -28,6 +28,10 @@ namespace RegionVision
         /// The list of regions this player is viewing
         /// </summary>
         public List<Region> regions { get; private set; }
+        /// <summary>
+        /// True if the player has elected to see regions near them
+        /// </summary>
+        public bool viewingNearby { get; set; }
 
         /// <summary>
         /// Creates a new instance of the Player class
@@ -37,6 +41,7 @@ namespace RegionVision
         {
             this.index = index;
             this.regions = new List<Region>();
+            this.viewingNearby = false;
         }
     }
 
@@ -61,6 +66,10 @@ namespace RegionVision
         /// Returns the colour of paint used on phantom tiles for this region's border
         /// </summary>
         public byte colour { get; private set; }
+        /// <summary>
+        /// True if the region was selected using a command; false if it's visible only because it's near the player
+        /// </summary>
+        public bool command { get; set; }
 
         private Tile[] realTile;
 
@@ -74,14 +83,16 @@ namespace RegionVision
         /// </summary>
         /// <param name="name">The name of the region</param>
         /// <param name="area">The area bounded by the region</param>
-        public Region(string name, Rectangle area) {
+        /// <param name="command">Set to false if the region was automatically shown.</param>
+        public Region(string name, Rectangle area, bool command = true) {
             this.name = name;
             this.area = area;
             this.showArea = area;
+            this.command = command;
 
             int total = 0;
             for (int i = 0; i < name.Length; i++) total += (int) name[i];
-            colour = (byte) (total % 12);
+            colour = (byte) (total % 12 + 13);
         }
 
         /// <summary>
@@ -119,8 +130,7 @@ namespace RegionVision
         /// Spawns fake tiles for the region border
         /// </summary>
         /// <exception cref="InvalidOperationException">Fake tiles have already been set, which would cause a desync.</exception>
-        public void setFakeTiles()
-        {
+        public void setFakeTiles() {
             int d; int index = 0;
 
             if (this.realTile != null) throw new InvalidOperationException("Fake tiles have already been set for the region.");
@@ -151,8 +161,7 @@ namespace RegionVision
         /// Removes fake tiles for the region, reverting to the real tiles.
         /// </summary>
         /// <exception cref="InvalidOperationException">Fake tiles have not been set.</exception>
-        public void unsetFakeTiles()
-        {
+        public void unsetFakeTiles() {
             int d; int index = 0;
 
             if (this.realTile == null) throw new InvalidOperationException("Fake tiles have not been set for the region.");
@@ -177,8 +186,7 @@ namespace RegionVision
         /// <param name="index">The index in the realTile array into which to store the existing tile</param>
         /// <param name="x">The x coordinate of the tile position</param>
         /// <param name="y">The y coordinate of the tile position</param>
-        public void setFakeTile(int index, int x, int y)
-        {
+        public void setFakeTile(int index, int x, int y) {
             if (x < 0 || y < 0 || x >= Main.maxTilesX || y >= Main.maxTilesY) return;
 
             this.realTile[index] = Main.tile[x, y];
@@ -204,8 +212,7 @@ namespace RegionVision
         /// <param name="index">The index in the realTile array from which to retrieve the existing tile</param>
         /// <param name="x">The x coordinate of the tile position</param>
         /// <param name="y">The y coordinate of the tile position</param>
-        public void unsetFakeTile(int index, int x, int y)
-        {
+        public void unsetFakeTile(int index, int x, int y) {
             if (x < 0 || y < 0 || x >= Main.maxTilesX || y >= Main.maxTilesY) return;
             Main.tile[x, y] = this.realTile[index];
         }
@@ -234,12 +241,15 @@ namespace RegionVision
     [ApiVersion(1, 16)]
     public class RegionVisionPlugin : TerrariaPlugin
     {
+        /// <summary>
+        /// The list of players being tracked by this plugin
+        /// </summary>
         public List<Player> players { get; private set; }
-        private Timer refreshTimer = new Timer(30000);
+        private Timer refreshTimer = new Timer(7000);
 
         public override Version Version
         {
-            get { return new Version(1, 0, 0, 0); }
+            get { return new Version(1, 1, 0, 0); }
         }
 
         public override string Name
@@ -256,6 +266,11 @@ namespace RegionVision
         {
             get { return "See your regions"; }
         }
+
+        /// <summary>
+        /// The range, in tiles, within which region borders may be automatically shown
+        /// </summary>
+        public const int NearRange = 100;
 
         /// <summary>
         /// The array from which the colour of the 'You are now viewing...' message is retrieved, to match the colour of the border
@@ -284,11 +299,18 @@ namespace RegionVision
         {
             Command viewCommand = new Command("regionview", commandView, new string[] { "regionview", "rv" });
             viewCommand.AllowServer = false;
+            viewCommand.HelpDesc = new string[] { "Usage: /rv <region name>", "Shows you the boundary of the specified region" };
             Commands.ChatCommands.Add(viewCommand);
 
             Command clearCommand = new Command("regionview", commandClear, new string[] { "regionclear", "rc" });
             clearCommand.AllowServer = false;
+            clearCommand.HelpDesc = new string[] { "Usage: /rc", "Removes all region borders from your view" };
             Commands.ChatCommands.Add(clearCommand);
+
+            Command viewNearbyCommand = new Command("regionviewnear", commandViewNearby, new string[] { "regionviewnear", "rvn" });
+            viewNearbyCommand.AllowServer = false;
+            viewNearbyCommand.HelpDesc = new string[] { "Usage: /rvn", "Turns on or off automatic showing of regions near you" };
+            Commands.ChatCommands.Add(viewNearbyCommand);
 
             GetDataHandlers.TileEdit += TShockAPI.HandlerList<GetDataHandlers.TileEditEventArgs>.Create(OnTileEdit, HandlerPriority.High, false);
             ServerApi.Hooks.ServerJoin.Register(this, onPlayerJoin);
@@ -384,8 +406,8 @@ namespace RegionVision
                 foreach (Region _region in player.regions.Reverse<Region>())
                     _region.unsetFakeTiles();
 
-                args.Player.SendMessage("You are now viewing " + region.name + ".", textColour[region.colour]);
-                refreshTimer.Interval = 30000;
+                args.Player.SendMessage("You are now viewing " + region.name + ".", textColour[region.colour - 13]);
+                refreshTimer.Interval = 7000;
                 refreshTimer.Enabled = true;
             }
         }
@@ -394,7 +416,25 @@ namespace RegionVision
             lock (players) {
                 Player player = findPlayer(args.Player.Index);
                 if (player == null) return;
+                player.viewingNearby = false;
                 clearRegions(player);
+            }
+        }
+
+        private void commandViewNearby(CommandArgs args) {
+            lock (players) {
+                Player player = findPlayer(args.Player.Index);
+                if (player == null) return;
+
+                if (player.viewingNearby) {
+                    player.viewingNearby = false;
+                    args.Player.SendInfoMessage("You are no longer viewing regions near you.");
+                } else {
+                    player.viewingNearby = true;
+                    args.Player.SendInfoMessage("You are now viewing regions near you.");
+                    refreshTimer.Interval = 1500;
+                    refreshTimer.Enabled = true;
+                }
             }
         }
 
@@ -564,6 +604,12 @@ namespace RegionVision
                             player.regions.RemoveAt(i--);
                         } else {
                             Rectangle newArea = tRegion.Area;
+                            if (!region.command && (!player.viewingNearby || !isPlayerNearby(player.TSPlayer, region.area))) {
+                                // The player is no longer near the region.
+                                refreshFlag = true;
+                                region.refresh(player.TSPlayer);
+                                player.regions.RemoveAt(i--);
+                            } else
                             if (newArea != region.area) {
                                 // The region was resized.
                                 if (newArea.Width < 0 || newArea.Height < 0) {
@@ -583,6 +629,25 @@ namespace RegionVision
                         }
                     }
 
+                    if (player.viewingNearby) {
+                        anyRegions = true;
+
+                        // Search for nearby regions
+                        foreach (TShockAPI.DB.Region tRegion in TShock.Regions.Regions) {
+                            if (tRegion.WorldID == Main.worldID.ToString() && tRegion.Area.Width >= 0 && tRegion.Area.Height >= 0) {
+                                if (isPlayerNearby(player.TSPlayer, tRegion.Area)) {
+                                    if (!player.regions.Any(r => r.name == tRegion.Name)) {
+                                        refreshFlag = true;
+                                        Region region = new Region(tRegion.Name, tRegion.Area, false);
+                                        region.calculateArea(player.TSPlayer);
+                                        player.regions.Add(region);
+                                        player.TSPlayer.SendMessage("You see region " + region.name + ".", textColour[region.colour - 13]);
+                                    }
+                                }
+                            }
+                        }
+                    }
+
                     if (refreshFlag) {
                         foreach (Region region in player.regions)
                             region.setFakeTiles();
@@ -595,10 +660,25 @@ namespace RegionVision
             }
 
             if (anyRegions) {
-                refreshTimer.Interval = 30000;
+                refreshTimer.Interval = 7000;
                 refreshTimer.Enabled = true;
             }
         }
 
+        /// <summary>
+        /// Checks whether a given player is near a given region
+        /// </summary>
+        /// <param name="tPlayer">The player to check</param>
+        /// <param name="area">The region to check</param>
+        /// <returns>true if the player is within 100 tiles of the region; false otherwise</returns>
+        public static bool isPlayerNearby(TShockAPI.TSPlayer tPlayer, Rectangle area) {
+            int playerX = (int) (tPlayer.X / 16);
+            int playerY = (int) (tPlayer.Y / 16);
+
+            return playerX >= area.Left   - NearRange &&
+                   playerX <= area.Right  + NearRange &&
+                   playerY >= area.Top    - NearRange &&
+                   playerY <= area.Bottom + NearRange;
+        }
     }
 }

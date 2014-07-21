@@ -12,8 +12,9 @@ Commands
 
 * `/regionview <region name>` or `/rv <region name>` – shows the given region border
 * `/regionclear` or `/rc` – removes all region borders from your view
+* `/regionviewnear` or `rvn` – turns on or off automatic showing of regions near you
 
 Permissions
 -----------
 
-* `regionview` – gives access to both commands listed above
+* `regionview` – gives access to all commands listed above
