@@ -8,273 +8,37 @@ using TerrariaApi;
 using TerrariaApi.Server;
 
 using TShockAPI;
+using TShockAPI.Hooks;
 
 namespace RegionVision
 {
-    /// <summary>
-    /// Associates data with an online player
-    /// </summary>
-    public class Player
-    {
-        /// <summary>
-        /// The player's index number
-        /// </summary>
-        public int index { get; private set; }
-        /// <summary>
-        /// Returns this player's TSPlayer instance
-        /// </summary>
-        public TSPlayer TSPlayer { get { return TShock.Players[index]; } }
-        /// <summary>
-        /// The list of regions this player is viewing
-        /// </summary>
-        public List<Region> regions { get; private set; }
-        /// <summary>
-        /// True if the player has elected to see regions near them
-        /// </summary>
-        public bool viewingNearby { get; set; }
-
-        /// <summary>
-        /// Creates a new instance of the Player class
-        /// </summary>
-        /// <param name="index">The player's index number</param>
-        public Player(int index)
-        {
-            this.index = index;
-            this.regions = new List<Region>();
-            this.viewingNearby = false;
-        }
-    }
-
-    /// <summary>
-    /// Represents a TShock region and stores some data about how it's being shown to a player
-    /// </summary>
-    public class Region
-    {
-        /// <summary>
-        /// Returns the name of the region
-        /// </summary>
-        public string name { get; private set; }
-        /// <summary>
-        /// The area bounded by the region
-        /// </summary>
-        public Rectangle area;
-        /// <summary>
-        /// The part of the region border that will be shown to players
-        /// </summary>
-        public Rectangle showArea;
-        /// <summary>
-        /// Returns the colour of paint used on phantom tiles for this region's border
-        /// </summary>
-        public byte colour { get; private set; }
-        /// <summary>
-        /// True if the region was selected using a command; false if it's visible only because it's near the player
-        /// </summary>
-        public bool command { get; set; }
-
-        private Tile[] realTile;
-
-        /// <summary>
-        /// The maximum width or height of a region border that will be shown
-        /// </summary>
-        public const int MaximumSize = 256;
-
-        /// <summary>
-        /// Creates a new instance of the Region class.
-        /// </summary>
-        /// <param name="name">The name of the region</param>
-        /// <param name="area">The area bounded by the region</param>
-        /// <param name="command">Set to false if the region was automatically shown.</param>
-        public Region(string name, Rectangle area, bool command = true) {
-            this.name = name;
-            this.area = area;
-            this.showArea = area;
-            this.command = command;
-
-            int total = 0;
-            for (int i = 0; i < name.Length; i++) total += (int) name[i];
-            colour = (byte) (total % 12 + 13);
-        }
-
-        /// <summary>
-        /// Calculates what part of the region border to show for a large region.
-        /// </summary>
-        public void calculateArea(TSPlayer tPlayer) {
-            this.showArea = this.area;
-
-            // If the region is large, only part of its border will be shown.
-            if (this.showArea.Width >= MaximumSize) {
-                this.showArea.X = (int) (tPlayer.X / 16) - MaximumSize / 2;
-                this.showArea.Width = MaximumSize - 1;
-                if (this.showArea.Left < this.area.Left) this.showArea.X = this.area.Left;
-                else if (this.showArea.Right > this.area.Right) this.showArea.X = this.area.Right - (MaximumSize - 1);
-            }
-            if (this.showArea.Height >= MaximumSize) {
-                this.showArea.Y = (int) (tPlayer.Y / 16) - MaximumSize / 2;
-                this.showArea.Height = MaximumSize - 1;
-                if (this.showArea.Top < this.area.Top) this.showArea.Y = this.area.Top;
-                else if (this.showArea.Bottom > this.area.Bottom) this.showArea.Y = this.area.Bottom - (MaximumSize - 1);
-            }
-
-            // Ensure the region boundary is within the world.
-            if      (this.showArea.Left < 1) this.showArea.X = 1;
-            else if (this.showArea.Left >= Main.maxTilesX - 1) this.showArea.X = Main.maxTilesX - 1;
-
-            if      (this.showArea.Top  < 1) this.showArea.Y = 1;
-            else if (this.showArea.Top  >= Main.maxTilesY - 1) this.showArea.Y = Main.maxTilesY - 1;
-
-            if (this.showArea.Right  >= Main.maxTilesX - 1) this.showArea.Width  = Main.maxTilesX - this.showArea.X - 2;
-            if (this.showArea.Bottom >= Main.maxTilesY - 1) this.showArea.Height = Main.maxTilesY - this.showArea.Y - 2;
-       }
-
-        /// <summary>
-        /// Spawns fake tiles for the region border
-        /// </summary>
-        /// <exception cref="InvalidOperationException">Fake tiles have already been set, which would cause a desync.</exception>
-        public void setFakeTiles() {
-            int d; int index = 0;
-
-            if (this.realTile != null) throw new InvalidOperationException("Fake tiles have already been set for the region.");
-
-            // Initialise the temporary tile array.
-            if (this.showArea.Width == 0)
-                this.realTile = new Tile[this.showArea.Height + 1];
-            else if (this.showArea.Height == 0)
-                this.realTile = new Tile[this.showArea.Width + 1];
-            else
-                this.realTile = new Tile[(this.showArea.Width + this.showArea.Height) * 2];
-
-            // Top boundary
-            if (this.showArea.Top == this.area.Top)
-                for (d = 0; d <= this.showArea.Width ; d++) setFakeTile(index++, this.showArea.Left  + d, this.showArea.Top       );
-            // East boundary
-            if (this.showArea.Right == this.area.Right)
-                for (d = 1; d <= this.showArea.Height; d++) setFakeTile(index++, this.showArea.Right    , this.showArea.Top + d   );
-            // West boundary
-            if (this.showArea.Width > 0 && this.showArea.Left == this.area.Left)
-                for (d = 1; d <= this.showArea.Height; d++) setFakeTile(index++, this.showArea.Left     , this.showArea.Top    + d);
-            // Bottom boundary
-            if (this.showArea.Height > 0 && this.showArea.Bottom == this.area.Bottom)
-                for (d = 1; d <  this.showArea.Width ; d++) setFakeTile(index++, this.showArea.Left  + d, this.showArea.Bottom    );
-        }
-
-        /// <summary>
-        /// Removes fake tiles for the region, reverting to the real tiles.
-        /// </summary>
-        /// <exception cref="InvalidOperationException">Fake tiles have not been set.</exception>
-        public void unsetFakeTiles() {
-            int d; int index = 0;
-
-            if (this.realTile == null) throw new InvalidOperationException("Fake tiles have not been set for the region.");
-
-            // Top boundary
-            if (this.showArea.Top == this.area.Top)
-                for (d = 0; d <= this.showArea.Width; d++) unsetFakeTile(index++, this.showArea.Left + d, this.showArea.Top);
-            // East boundary
-            if (this.showArea.Right == this.area.Right)
-                for (d = 1; d <= this.showArea.Height; d++) unsetFakeTile(index++, this.showArea.Right, this.showArea.Top + d);
-            // West boundary
-            if (this.showArea.Width > 0 && this.showArea.Left == this.area.Left)
-                for (d = 1; d <= this.showArea.Height; d++) unsetFakeTile(index++, this.showArea.Left, this.showArea.Top + d);
-            // Bottom boundary
-            if (this.showArea.Height > 0 && this.showArea.Bottom == this.area.Bottom)
-                for (d = 1; d < this.showArea.Width; d++) unsetFakeTile(index++, this.showArea.Left + d, this.showArea.Bottom);
-
-            this.realTile = null;
-        }
-
-        /// <summary>Adds a single fake tile. If a tile exists, this will replace it with a painted clone. Otherwise, this will place an inactive magical ice tile with the same paint.</summary>
-        /// <param name="index">The index in the realTile array into which to store the existing tile</param>
-        /// <param name="x">The x coordinate of the tile position</param>
-        /// <param name="y">The y coordinate of the tile position</param>
-        public void setFakeTile(int index, int x, int y) {
-            if (x < 0 || y < 0 || x >= Main.maxTilesX || y >= Main.maxTilesY) return;
-
-            this.realTile[index] = Main.tile[x, y];
-            Tile fakeTile;
-            if (this.realTile[index] == null) fakeTile = new Tile();
-            else fakeTile = new Tile(this.realTile[index]);
-            if (this.realTile[index] != null && this.realTile[index].active()) {
-                if (this.realTile[index].type == Terraria.ID.TileID.RainbowBrick) fakeTile.type = Terraria.ID.TileID.GrayBrick;
-                fakeTile.color(this.colour);
-            } else {
-                if (Main.rand == null) Main.rand = new Random();
-                fakeTile.active(true);
-                fakeTile.inActive(true);
-                fakeTile.type = Terraria.ID.TileID.MagicalIceBlock;
-                fakeTile.frameX = (short) (162 + Main.rand.Next(0, 2) * 18);
-                fakeTile.frameY = 54;
-                fakeTile.color(this.colour);
-            }
-            Main.tile[x, y] = fakeTile;
-        }
-
-        /// <summary>Removes a single fake tile, reverting to the real tile</summary>
-        /// <param name="index">The index in the realTile array from which to retrieve the existing tile</param>
-        /// <param name="x">The x coordinate of the tile position</param>
-        /// <param name="y">The y coordinate of the tile position</param>
-        public void unsetFakeTile(int index, int x, int y) {
-            if (x < 0 || y < 0 || x >= Main.maxTilesX || y >= Main.maxTilesY) return;
-            Main.tile[x, y] = this.realTile[index];
-        }
-
-        /// <summary>Sends tile updates for a region border to a client.</summary>
-        /// <param name="player">The player to send to</param>
-        public void refresh(TShockAPI.TSPlayer player) {
-            // Due to the way the Rectangle class works, the Width and Height values are one tile less than the actual dimensions of the region.
-            if (this.showArea.Width <= 3 || this.showArea.Height <= 3) {
-                player.SendData(PacketTypes.TileSendSection, "", this.showArea.Left - 1, this.showArea.Top - 1, this.showArea.Width + 3, this.showArea.Height + 3, 0);
-            } else {
-                if (this.showArea.Top    == this.area.Top   )
-                    player.SendData(PacketTypes.TileSendSection, "", this.showArea.Left  - 1, this.showArea.Top    - 1, this.showArea.Width + 3,                    3, 0);
-                if (this.showArea.Left   == this.area.Left  )
-                    player.SendData(PacketTypes.TileSendSection, "", this.showArea.Left  - 1, this.showArea.Top    + 2,                       3, this.showArea.Height, 0);
-                if (this.showArea.Right  == this.area.Right )
-                    player.SendData(PacketTypes.TileSendSection, "", this.showArea.Right - 1, this.showArea.Top    + 2,                       3, this.showArea.Height, 0);
-                if (this.showArea.Bottom == this.area.Bottom)
-                    player.SendData(PacketTypes.TileSendSection, "", this.showArea.Left  + 2, this.showArea.Bottom - 1, this.showArea.Width - 3,                    3, 0);
-            }
-
-            player.SendData(PacketTypes.TileFrameSection, "", (int) (this.showArea.Left / 200), (int) (this.showArea.Top / 150), (int) (this.showArea.Right / 200), (int) (this.showArea.Bottom / 150), 0);
-        }
-    }
-
-    [ApiVersion(1, 16)]
+    [ApiVersion(1, 17)]
     public class RegionVisionPlugin : TerrariaPlugin
     {
-        /// <summary>
-        /// The list of players being tracked by this plugin
-        /// </summary>
+        /// <summary>The list of players being tracked by this plugin.</summary>
         public List<Player> players { get; private set; }
-        private Timer refreshTimer = new Timer(7000);
+        private Timer refreshTimer = new Timer(5000);
 
-        public override Version Version
-        {
-            get { return new Version(1, 1, 0, 0); }
+        public override Version Version {
+            get { return new Version(1, 2, 0, 0); }
         }
 
-        public override string Name
-        {
+        public override string Name {
             get { return "Region Vision"; }
         }
 
-        public override string Author
-        {
+        public override string Author {
             get { return "Andrio Celos"; }
         }
 
-        public override string Description
-        {
+        public override string Description {
             get { return "See your regions"; }
         }
 
-        /// <summary>
-        /// The range, in tiles, within which region borders may be automatically shown
-        /// </summary>
+        /// <summary>The range, in tiles, within which region borders may be automatically shown.</summary>
         public const int NearRange = 100;
 
-        /// <summary>
-        /// The array from which the colour of the 'You are now viewing...' message is retrieved, to match the colour of the border
-        /// </summary>
+        /// <summary>The array from which the colour of the 'You are now viewing...' message is retrieved, to match the colour of the border.</summary>
         public readonly static Color[] textColour = {new Color(244,  93,  93),
                                                      new Color(244, 169,  93),
                                                      new Color(244, 244,  93),
@@ -313,6 +77,8 @@ namespace RegionVision
             Commands.ChatCommands.Add(viewNearbyCommand);
 
             GetDataHandlers.TileEdit += TShockAPI.HandlerList<GetDataHandlers.TileEditEventArgs>.Create(OnTileEdit, HandlerPriority.High, false);
+            TShockAPI.Hooks.RegionHooks.RegionCreated += RegionHooks_RegionCreated;
+            TShockAPI.Hooks.RegionHooks.RegionDeleted += RegionHooks_RegionDeleted;
             ServerApi.Hooks.ServerJoin.Register(this, onPlayerJoin);
             ServerApi.Hooks.ServerLeave.Register(this, onPlayerLeave);
             TShockAPI.Hooks.PlayerHooks.PlayerCommand += onPlayerCommand;
@@ -321,9 +87,40 @@ namespace RegionVision
             refreshTimer.Elapsed += refreshTimer_Elapsed;
         }
 
-        /// <summary>
-        /// Returns the Player instance for a given index number
-        /// </summary>
+        void RegionHooks_RegionDeleted(RegionHooks.RegionDeletedEventArgs args) {
+            Console.WriteLine("Region {0} was deleted.", args.Region.Name);
+            if (args.Region.WorldID != Main.worldID.ToString()) return;
+
+            // If any players were viewing this region, clear its border.
+            lock (players) {
+                foreach (Player player in players) {
+                    for (int i = 0; i < player.regions.Count; i++) {
+                        Region region = player.regions[i];
+                        if (region.name.Equals(args.Region.Name)) {
+                            player.TSPlayer.SendMessage("Region " + region.name + " has been deleted.", textColour[region.colour - 13]);
+                            region.refresh(player.TSPlayer);
+                            player.regions.RemoveAt(i);
+
+                            foreach (Region region2 in player.regions)
+                                region2.setFakeTiles();
+                            foreach (Region region2 in player.regions)
+                                region2.refresh(player.TSPlayer);
+                            foreach (Region region2 in player.regions.Reverse<Region>())
+                                region2.unsetFakeTiles();
+
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        void RegionHooks_RegionCreated(RegionHooks.RegionCreatedEventArgs args) {
+            Console.WriteLine("Region {0} was created. ({1})", args.Region.Name, args.Region.Area);
+            refreshTimer.Stop();
+            refreshTimer_Elapsed(this, null);
+        }
+
+        /// <summary>Returns the Player instance for the player with a given index number.</summary>
         public Player findPlayer(int index) {
             foreach (Player player in players)
                 if (player.index == index) return player;
@@ -406,7 +203,37 @@ namespace RegionVision
                 foreach (Region _region in player.regions.Reverse<Region>())
                     _region.unsetFakeTiles();
 
-                args.Player.SendMessage("You are now viewing " + region.name + ".", textColour[region.colour - 13]);
+                string message = "You are now viewing " + region.name + ".";
+                // Show how large the region is if it's large.
+                if (tRegion.Area.Width >= Region.MaximumSize || tRegion.Area.Height >= Region.MaximumSize) {
+                    int num; int num2;
+                    if (tRegion.Area.Bottom < args.Player.TileY) {
+                        num = args.Player.TileY - tRegion.Area.Bottom;
+                        message += " Borders are " + num + (num == 1 ? " tile" : " tiles") + " above you";
+                    } else if (tRegion.Area.Top > args.Player.TileY) {
+                        num = tRegion.Area.Top - args.Player.TileY;
+                        message += " Borders are " + (tRegion.Area.Top - args.Player.TileY) + (num == 1 ? " tile" : " tiles") + " below you";
+                    } else {
+                        num = args.Player.TileY - tRegion.Area.Top;
+                        num2 = tRegion.Area.Bottom - args.Player.TileY;
+                        message += " Borders are " + (args.Player.TileY - tRegion.Area.Top) + (num == 1 ? " tile" : " tiles") + " above, " +
+                            (tRegion.Area.Bottom - args.Player.TileY) + (num2 == 1 ? " tile" : " tiles") + " below you";
+                    }
+                    if (tRegion.Area.Right < args.Player.TileX) {
+                        num = args.Player.TileX - tRegion.Area.Right;
+                        message += ", " + (args.Player.TileX - tRegion.Area.Right) + (num == 1 ? " tile" : " tiles") + " west of you.";
+                    } else if (tRegion.Area.Left > args.Player.TileX) {
+                        num = tRegion.Area.Left - args.Player.TileX;
+                        message += ", " + (tRegion.Area.Left - args.Player.TileX) + (num == 1 ? " tile" : " tiles") + " east of you.";
+                    } else {
+                        num = args.Player.TileX - tRegion.Area.Left;
+                        num2 = tRegion.Area.Right - args.Player.TileX;
+                        message += ", " + (args.Player.TileX - tRegion.Area.Left) + (num == 1 ? " tile" : " tiles") + " west, " +
+                            (tRegion.Area.Right - args.Player.TileX) + (num2 == 1 ? " tile" : " tiles") + " east of you.";
+                    }
+                }
+                args.Player.SendMessage(message, textColour[region.colour - 13]);
+
                 refreshTimer.Interval = 7000;
                 refreshTimer.Enabled = true;
             }
@@ -438,9 +265,7 @@ namespace RegionVision
             }
         }
 
-        /// <summary>
-        /// Removes all region borders from a player's view
-        /// </summary>
+        /// <summary>Removes all region borders from a player's view.</summary>
         /// <param name="player">The player to reset</param>
         public void clearRegions(Player player) {
             foreach (Region region in player.regions)
@@ -466,7 +291,7 @@ namespace RegionVision
                         e.X >= region.showArea.Left - 1 && e.X <= region.showArea.Right + 1 && e.Y >= region.showArea.Top - 1 && e.Y <= region.showArea.Bottom + 1 &&
                         !(e.X >= region.showArea.Left + 2 && e.X <= region.showArea.Right - 2 && e.Y >= region.showArea.Top + 2 && e.Y <= region.showArea.Bottom - 2)) {
                         e.Handled = true;
-                        clearRegions(player);
+                        //clearRegions(player);
                         break;
                     }
                     if ((e.Action == GetDataHandlers.EditAction.PlaceTile || e.Action == GetDataHandlers.EditAction.PlaceWall) && !tileValidityCheck(region, e.X, e.Y, e.Action)) {
@@ -481,14 +306,12 @@ namespace RegionVision
             }
         }
 
-        /// <summary>
-        /// Checks whether a player's attempted tile edit is valid. A tile edit is considered invalid if it's only possible due to the presence of phantom tiles.
-        /// </summary>
-        /// <param name="region">The region to check</param>
-        /// <param name="x">The x coordinate of the edited tile</param>
-        /// <param name="y">The y coordinate of the edited tile</param>
-        /// <param name="editType">The type of the edit</param>
-        /// <returns>true if the edit was valid; false if it wasn't</returns>
+        /// <summary>Checks whether a player's attempted tile edit is valid. A tile edit is considered invalid if it's only possible due to the presence of phantom tiles.</summary>
+        /// <param name="region">The region to check.</param>
+        /// <param name="x">The x coordinate of the edited tile.</param>
+        /// <param name="y">The y coordinate of the edited tile.</param>
+        /// <param name="editType">The type of the edit.</param>
+        /// <returns>true if the edit was valid; false if it wasn't.</returns>
         public bool tileValidityCheck(Region region, int x, int y, GetDataHandlers.EditAction editType) {
             // Check if there's a wall or another tile next to this tile.
             if (editType == GetDataHandlers.EditAction.PlaceWall) {
@@ -531,12 +354,10 @@ namespace RegionVision
                 }
         }
 
-        /// <summary>
-        /// Returns the item used to attempt a rejected foreground tile edit to the player
-        /// </summary>
+        /// <summary>Returns the item used to attempt a rejected foreground tile edit to the player.</summary>
         /// <param name="player">The player attempting the edit</param>
         /// <param name="e">The data from the edit event</param>
-        void giveTile(Player player, TShockAPI.GetDataHandlers.TileEditEventArgs e) {
+        public void giveTile(Player player, TShockAPI.GetDataHandlers.TileEditEventArgs e) {
             Item item = new Item(); bool found = false;
             for (int i = 1; i <= Terraria.ID.ItemID.Count; i++) {
                 item.SetDefaults(i, true);
@@ -549,12 +370,10 @@ namespace RegionVision
             if (found) giveItem(player, item);
         }
 
-        /// <summary>
-        /// Returns the item used to attempt a rejected background wall edit to the player
-        /// </summary>
+        /// <summary>Returns the item used to attempt a rejected background wall edit to the player.</summary>
         /// <param name="player">The player attempting the edit</param>
         /// <param name="e">The data from the edit event</param>
-        void giveWall(Player player, TShockAPI.GetDataHandlers.TileEditEventArgs e) {
+        public void giveWall(Player player, TShockAPI.GetDataHandlers.TileEditEventArgs e) {
             Item item = new Item(); bool found = false;
             for (int i = 1; i <= Terraria.ID.ItemID.Count; i++) {
                 item.SetDefaults(i, true);
@@ -566,12 +385,10 @@ namespace RegionVision
             if (found) giveItem(player, item);
         }
 
-        /// <summary>
-        /// Gives an item to a player
-        /// </summary>
+        /// <summary>Gives an item to a player.</summary>
         /// <param name="player">The player to receive the item</param>
         /// <param name="item">The item to give</param>
-        void giveItem(Player player, Item item) {
+        public void giveItem(Player player, Item item) {
             int itemID = Item.NewItem((int) player.TSPlayer.X, (int) player.TSPlayer.Y, item.width, item.height, item.type, 1, true, 0, true);
             Terraria.Main.item[itemID].owner = player.index;
             NetMessage.SendData((int) PacketTypes.ItemDrop, -1, -1, "", itemID, 0f, 0f, 0f);
@@ -665,9 +482,7 @@ namespace RegionVision
             }
         }
 
-        /// <summary>
-        /// Checks whether a given player is near a given region
-        /// </summary>
+        /// <summary>Checks whether a given player is near a given region.</summary>
         /// <param name="tPlayer">The player to check</param>
         /// <param name="area">The region to check</param>
         /// <returns>true if the player is within 100 tiles of the region; false otherwise</returns>

@@ -45,6 +45,8 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Player.cs" />
+    <Compile Include="Region.cs" />
     <Compile Include="RegionVision.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
