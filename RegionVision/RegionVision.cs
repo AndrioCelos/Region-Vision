@@ -61,17 +61,20 @@ namespace RegionVision
 
         public override void Initialize()
         {
-            Command viewCommand = new Command("regionview", commandView, new string[] { "regionview", "rv" });
+            Command viewCommand = new Command(new List<string>(new string[] { "regionvision.regionview", "regionview" }),
+                commandView, new string[] { "regionview", "rv" });
             viewCommand.AllowServer = false;
             viewCommand.HelpDesc = new string[] { "Usage: /rv <region name>", "Shows you the boundary of the specified region" };
             Commands.ChatCommands.Add(viewCommand);
 
-            Command clearCommand = new Command("regionview", commandClear, new string[] { "regionclear", "rc" });
+            Command clearCommand = new Command(new List<string>(new string[] { "regionvision.regionview", "regionview" }),
+                commandClear, new string[] { "regionclear", "rc" });
             clearCommand.AllowServer = false;
             clearCommand.HelpDesc = new string[] { "Usage: /rc", "Removes all region borders from your view" };
             Commands.ChatCommands.Add(clearCommand);
 
-            Command viewNearbyCommand = new Command("regionviewnear", commandViewNearby, new string[] { "regionviewnear", "rvn" });
+            Command viewNearbyCommand = new Command(new List<string>(new string[] { "regionvision.regionviewnear", "regionviewnear" }),
+                commandViewNearby, new string[] { "regionviewnear", "rvn" });
             viewNearbyCommand.AllowServer = false;
             viewNearbyCommand.HelpDesc = new string[] { "Usage: /rvn", "Turns on or off automatic showing of regions near you" };
             Commands.ChatCommands.Add(viewNearbyCommand);

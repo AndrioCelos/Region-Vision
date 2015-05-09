@@ -17,4 +17,5 @@ Commands
 Permissions
 -----------
 
-* `regionview` – gives access to all commands listed above
+* `regionvision.regionview` – gives access to `/rv` and `/rc`.
+* `regionvision.regionviewnear` – gives access to `/rvn`.

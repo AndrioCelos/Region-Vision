@@ -1,3 +1,8 @@
+Version 1.2.1 – 9 May 2015
+--------------------------
+
+* Changed the permissions to `regionvision.regionview` and `regionvision.regionviewnear` to be standards compliant. The old permissions still work.
+
 Version 1.2 – 9 March 2015
 --------------------------
 
