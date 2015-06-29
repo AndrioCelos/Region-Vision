@@ -1,3 +1,8 @@
+Version 1.2.2 – 29 June 2015
+----------------------------
+
+* Now targets [TShock 4.3.0 GM1](https://tshock.co/xf/index.php?threads/tshock-4-3-0-gm-prerelease.3759/) and .NET Framework 4.5.
+
 Version 1.2.1 – 9 May 2015
 --------------------------
 

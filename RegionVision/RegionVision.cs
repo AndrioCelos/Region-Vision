@@ -10,17 +10,15 @@ using TerrariaApi.Server;
 using TShockAPI;
 using TShockAPI.Hooks;
 
-namespace RegionVision
-{
+namespace RegionVision {
     [ApiVersion(1, 17)]
-    public class RegionVisionPlugin : TerrariaPlugin
-    {
+    public class RegionVisionPlugin : TerrariaPlugin {
         /// <summary>The list of players being tracked by this plugin.</summary>
         public List<Player> players { get; private set; }
         private Timer refreshTimer = new Timer(5000);
 
         public override Version Version {
-            get { return new Version(1, 2, 0, 0); }
+            get { return new Version(1, 2, 2, 0); }
         }
 
         public override string Name {
@@ -91,7 +89,6 @@ namespace RegionVision
         }
 
         void RegionHooks_RegionDeleted(RegionHooks.RegionDeletedEventArgs args) {
-            Console.WriteLine("Region {0} was deleted.", args.Region.Name);
             if (args.Region.WorldID != Main.worldID.ToString()) return;
 
             // If any players were viewing this region, clear its border.
@@ -118,7 +115,6 @@ namespace RegionVision
             }
         }
         void RegionHooks_RegionCreated(RegionHooks.RegionCreatedEventArgs args) {
-            Console.WriteLine("Region {0} was created. ({1})", args.Region.Name, args.Region.Area);
             refreshTimer.Stop();
             refreshTimer_Elapsed(this, null);
         }
