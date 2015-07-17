@@ -11,14 +11,14 @@ using TShockAPI;
 using TShockAPI.Hooks;
 
 namespace RegionVision {
-    [ApiVersion(1, 17)]
+    [ApiVersion(1, 19)]
     public class RegionVisionPlugin : TerrariaPlugin {
         /// <summary>The list of players being tracked by this plugin.</summary>
         public List<Player> players { get; private set; }
         private Timer refreshTimer = new Timer(5000);
 
         public override Version Version {
-            get { return new Version(1, 2, 2, 0); }
+            get { return new Version(1, 2, 3, 0); }
         }
 
         public override string Name {
@@ -30,7 +30,7 @@ namespace RegionVision {
         }
 
         public override string Description {
-            get { return "See your regions"; }
+            get { return "See your regions."; }
         }
 
         /// <summary>The range, in tiles, within which region borders may be automatically shown.</summary>
@@ -176,7 +176,7 @@ namespace RegionVision {
             }
 
             if (tRegion.Area.Width < 0 || tRegion.Area.Height < 0) {
-                args.Player.SendErrorMessage("Region {0} contains no tiles. (Found dimensions: {1} × {2}) Use  /region resize  to fix it.", tRegion.Name, tRegion.Area.Width, tRegion.Area.Height);
+                args.Player.SendErrorMessage("Region {0} contains no tiles. (Found dimensions: {1} × {2}) Use [c/FF8080:/region resize] to fix it.", tRegion.Name, tRegion.Area.Width, tRegion.Area.Height);
                 return;
             }
 

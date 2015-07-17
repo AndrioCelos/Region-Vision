@@ -1,3 +1,9 @@
+Version 1.2.3 – 17 July 2015
+----------------------------
+
+* Updated for API version 1.19 and _Terraria_ 1.3.
+* Repainted one of the messages.
+
 Version 1.2.2 – 29 June 2015
 ----------------------------
 
