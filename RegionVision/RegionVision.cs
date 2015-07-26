@@ -11,27 +11,15 @@ using TShockAPI;
 using TShockAPI.Hooks;
 
 namespace RegionVision {
-    [ApiVersion(1, 19)]
+    [ApiVersion(1, 20)]
     public class RegionVisionPlugin : TerrariaPlugin {
         /// <summary>The list of players being tracked by this plugin.</summary>
-        public List<Player> players { get; private set; }
-        private Timer refreshTimer = new Timer(5000);
+        public List<Player> players { get; }
 
-        public override Version Version {
-            get { return new Version(1, 2, 3, 0); }
-        }
-
-        public override string Name {
-            get { return "Region Vision"; }
-        }
-
-        public override string Author {
-            get { return "Andrio Celos"; }
-        }
-
-        public override string Description {
-            get { return "See your regions."; }
-        }
+        public override Version Version => new Version(1, 2, 4, 0);
+        public override string Name => "Region Vision";
+        public override string Author => "Andrio Celos";
+        public override string Description => "See your regions.";
 
         /// <summary>The range, in tiles, within which region borders may be automatically shown.</summary>
         public const int NearRange = 100;
@@ -50,15 +38,14 @@ namespace RegionVision {
                                                      new Color(244,  93, 244),
                                                      new Color(244,  93, 169)};
 
-        public RegionVisionPlugin(Main game)
-            : base(game)
-        {
+        private Timer refreshTimer = new Timer(5000);
+
+        public RegionVisionPlugin(Main game) : base(game) {
             players = new List<Player>();
             Order = 1;
         }
 
-        public override void Initialize()
-        {
+        public override void Initialize() {
             Command viewCommand = new Command(new List<string>(new string[] { "regionvision.regionview", "regionview" }),
                 commandView, new string[] { "regionview", "rv" });
             viewCommand.AllowServer = false;

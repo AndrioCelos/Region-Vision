@@ -7,14 +7,14 @@ namespace RegionVision {
     /// <summary>Represents a TShock region and stores some data about how it's being shown to a player.</summary>
     public class Region {
         /// <summary>Returns the name of the region.</summary>
-        public string name { get; private set; }
+        public string name { get; }
         /// <summary>The area bounded by the region.</summary>
         public Rectangle area;
         /// <summary>The part of the region border that will be shown to players.</summary>
         /// <remarks>This will be a small part of the region if the region is very large.</remarks>
         public Rectangle showArea;
         /// <summary>Returns the colour of paint used on phantom tiles for this region's border.</summary>
-        public byte colour { get; private set; }
+        public byte colour { get; }
         /// <summary>True if the region was selected using a command; false if it's visible only because it's near the player.</summary>
         public bool command { get; set; }
 

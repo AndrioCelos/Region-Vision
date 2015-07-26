@@ -7,11 +7,11 @@ namespace RegionVision {
     /// </summary>
     public class Player {
         /// <summary>The player's index number.</summary>
-        public int index { get; private set; }
+        public int index { get; }
         /// <summary>Returns this player's TSPlayer instance.</summary>
-        public TSPlayer TSPlayer { get { return TShock.Players[index]; } }
+        public TSPlayer TSPlayer => TShock.Players[index];
         /// <summary>The list of regions this player is viewing.</summary>
-        public List<Region> regions { get; private set; }
+        public List<Region> regions { get; }
         /// <summary>True if the player has elected to see regions near them.</summary>
         public bool viewingNearby { get; set; }
 
