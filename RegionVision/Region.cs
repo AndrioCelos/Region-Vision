@@ -126,14 +126,22 @@ namespace RegionVision {
         public void setFakeTile(int index, int x, int y) {
             if (x < 0 || y < 0 || x >= Main.maxTilesX || y >= Main.maxTilesY) return;
 
-            this.realTile[index] = Main.tile[x, y];
             Tile fakeTile;
-            if (this.realTile[index] == null) fakeTile = new Tile();
-            else fakeTile = new Tile(this.realTile[index]);
+            if (Main.tile[x, y] == null) {
+                fakeTile = new Tile();
+            } else {
+                // As of API version 1.22, Main.tile.get now only returns a link to the tile data heap, and the tile was getting lost at Main.tile[x, y] = fakeTile.
+                // This is why we actually have to copy the tile now.
+                this.realTile[index] = new Tile(Main.tile[x, y]);
+                fakeTile = Main.tile[x, y];
+            }
+
             if (this.realTile[index] != null && this.realTile[index].active()) {
-                if (this.realTile[index].type == Terraria.ID.TileID.RainbowBrick) fakeTile.type = Terraria.ID.TileID.GrayBrick;
+                // There's already a tile there; apply paint.
+                if (fakeTile.type == Terraria.ID.TileID.RainbowBrick) fakeTile.type = Terraria.ID.TileID.GrayBrick;
                 fakeTile.color(this.colour);
             } else {
+                // There isn't a tile there; place an ice block.
                 if (Main.rand == null) Main.rand = new Random();
                 fakeTile.active(true);
                 fakeTile.inActive(true);
@@ -142,7 +150,6 @@ namespace RegionVision {
                 fakeTile.frameY = 54;
                 fakeTile.color(this.colour);
             }
-            Main.tile[x, y] = fakeTile;
         }
 
         /// <summary>Removes a single fake tile, reverting to the real tile.</summary>

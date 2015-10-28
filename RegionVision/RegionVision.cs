@@ -11,12 +11,12 @@ using TShockAPI;
 using TShockAPI.Hooks;
 
 namespace RegionVision {
-    [ApiVersion(1, 21)]
+    [ApiVersion(1, 22)]
     public class RegionVisionPlugin : TerrariaPlugin {
         /// <summary>The list of players being tracked by this plugin.</summary>
         public List<Player> players { get; }
 
-        public override Version Version => new Version(1, 2, 5, 0);
+        public override Version Version => new Version(1, 2, 6, 0);
         public override string Name => "Region Vision";
         public override string Author => "Andrio Celos";
         public override string Description => "See your regions.";
