@@ -1,7 +1,7 @@
-Version 1.2.6 – 28 October 2015
+Version 1.2.7 – 1 June 2016
 ----------------------------
 
-* Updated for API version 1.22 and _Terraria_ 1.3.0.8.
+* Updated for API version 1.23 and _Terraria_ 1.3.1.1.
 
 Version 1.2.3 – 17 July 2015
 ----------------------------
