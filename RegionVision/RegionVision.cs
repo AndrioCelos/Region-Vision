@@ -4,19 +4,18 @@ using System.Linq;
 using System.Timers;
 
 using Terraria;
-using TerrariaApi;
 using TerrariaApi.Server;
 
 using TShockAPI;
 using TShockAPI.Hooks;
 
 namespace RegionVision {
-    [ApiVersion(1, 22)]
+    [ApiVersion(1, 23)]
     public class RegionVisionPlugin : TerrariaPlugin {
         /// <summary>The list of players being tracked by this plugin.</summary>
         public List<Player> players { get; }
 
-        public override Version Version => new Version(1, 2, 6, 0);
+        public override Version Version => new Version(1, 2, 7, 0);
         public override string Name => "Region Vision";
         public override string Author => "Andrio Celos";
         public override string Description => "See your regions.";
@@ -106,15 +105,14 @@ namespace RegionVision {
             refreshTimer_Elapsed(this, null);
         }
 
-        /// <summary>Returns the Player instance for the player with a given index number.</summary>
+        /// <summary>Returns the <see cref="Player"/> instance for the player with a given index number.</summary>
         public Player findPlayer(int index) {
             foreach (Player player in players)
                 if (player.index == index) return player;
             return null;
         }
 
-        private void commandView(CommandArgs args)
-        {
+        private void commandView(CommandArgs args) {
             TShockAPI.DB.Region tRegion = null;
             List<TShockAPI.DB.Region> matches = new List<TShockAPI.DB.Region>();
 
@@ -163,7 +161,7 @@ namespace RegionVision {
             }
 
             if (tRegion.Area.Width < 0 || tRegion.Area.Height < 0) {
-                args.Player.SendErrorMessage("Region {0} contains no tiles. (Found dimensions: {1} × {2}) Use [c/FF8080:/region resize] to fix it.", tRegion.Name, tRegion.Area.Width, tRegion.Area.Height);
+                args.Player.SendErrorMessage("Region {0} contains no tiles. (Found dimensions: {1} × {2})\nUse [c/FF8080:/region resize] to fix it.", tRegion.Name, tRegion.Area.Width, tRegion.Area.Height);
                 return;
             }
 
@@ -259,7 +257,7 @@ namespace RegionVision {
             player.regions.Clear();
         }
 
-        private void OnTileEdit(object sender, TShockAPI.GetDataHandlers.TileEditEventArgs e)
+        private void OnTileEdit(object sender, GetDataHandlers.TileEditEventArgs e)
         {
             if (e.Action > GetDataHandlers.EditAction.KillTileNoItem ||
                 e.Action == GetDataHandlers.EditAction.KillWall) return;
@@ -325,12 +323,12 @@ namespace RegionVision {
             return true;
         }
 
-        private void onPlayerJoin(TerrariaApi.Server.JoinEventArgs e) {
+        private void onPlayerJoin(JoinEventArgs e) {
             lock (players)
                 players.Add(new Player(e.Who));
         }
 
-        private void onPlayerLeave(TerrariaApi.Server.LeaveEventArgs e) {
+        private void onPlayerLeave(LeaveEventArgs e) {
             lock (players)
                 for (int i = 0; i < players.Count; i++) {
                     if (players[i].index == e.Who) {
@@ -343,7 +341,7 @@ namespace RegionVision {
         /// <summary>Returns the item used to attempt a rejected foreground tile edit to the player.</summary>
         /// <param name="player">The player attempting the edit</param>
         /// <param name="e">The data from the edit event</param>
-        public void giveTile(Player player, TShockAPI.GetDataHandlers.TileEditEventArgs e) {
+        public void giveTile(Player player, GetDataHandlers.TileEditEventArgs e) {
             Item item = new Item(); bool found = false;
             for (int i = 1; i <= Terraria.ID.ItemID.Count; i++) {
                 item.SetDefaults(i, true);
@@ -359,7 +357,7 @@ namespace RegionVision {
         /// <summary>Returns the item used to attempt a rejected background wall edit to the player.</summary>
         /// <param name="player">The player attempting the edit</param>
         /// <param name="e">The data from the edit event</param>
-        public void giveWall(Player player, TShockAPI.GetDataHandlers.TileEditEventArgs e) {
+        public void giveWall(Player player, GetDataHandlers.TileEditEventArgs e) {
             Item item = new Item(); bool found = false;
             for (int i = 1; i <= Terraria.ID.ItemID.Count; i++) {
                 item.SetDefaults(i, true);
@@ -376,12 +374,12 @@ namespace RegionVision {
         /// <param name="item">The item to give</param>
         public void giveItem(Player player, Item item) {
             int itemID = Item.NewItem((int) player.TSPlayer.X, (int) player.TSPlayer.Y, item.width, item.height, item.type, 1, true, 0, true);
-            Terraria.Main.item[itemID].owner = player.index;
+            Main.item[itemID].owner = player.index;
             NetMessage.SendData((int) PacketTypes.ItemDrop, -1, -1, "", itemID, 0f, 0f, 0f);
             NetMessage.SendData((int) PacketTypes.ItemOwner, -1, -1, "", itemID, 0f, 0f, 0f);
         }
 
-        private void onPlayerCommand(TShockAPI.Hooks.PlayerCommandEventArgs e) {
+        private void onPlayerCommand(PlayerCommandEventArgs e) {
             if (e.Parameters.Count >= 2 && e.CommandName.ToLower() == "region" && new string[] {"delete", "resize", "expand"}.Contains(e.Parameters[0].ToLower())) {
                 if (Commands.ChatCommands.Any(c => c.HasAlias("region") && c.CanRun(e.Player)))
                     refreshTimer.Interval = 1500;
@@ -472,7 +470,7 @@ namespace RegionVision {
         /// <param name="tPlayer">The player to check</param>
         /// <param name="area">The region to check</param>
         /// <returns>true if the player is within 100 tiles of the region; false otherwise</returns>
-        public static bool isPlayerNearby(TShockAPI.TSPlayer tPlayer, Rectangle area) {
+        public static bool isPlayerNearby(TSPlayer tPlayer, Rectangle area) {
             int playerX = (int) (tPlayer.X / 16);
             int playerY = (int) (tPlayer.Y / 16);
 
