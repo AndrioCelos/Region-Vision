@@ -1,6 +1,7 @@
 ﻿using System;
 
 using Terraria;
+using Terraria.Utilities;
 using TShockAPI;
 
 namespace RegionVision {
@@ -142,7 +143,7 @@ namespace RegionVision {
                 fakeTile.color(this.colour);
             } else {
                 // There isn't a tile there; place an ice block.
-                if (Main.rand == null) Main.rand = new Random();
+                if (Main.rand == null) Main.rand = new UnifiedRandom();
                 fakeTile.active(true);
                 fakeTile.inActive(true);
                 fakeTile.type = Terraria.ID.TileID.MagicalIceBlock;
