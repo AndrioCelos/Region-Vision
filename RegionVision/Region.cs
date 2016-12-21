@@ -1,5 +1,6 @@
 ﻿using System;
-
+using Microsoft.Xna.Framework;
+using OTAPI.Tile;
 using Terraria;
 using Terraria.Utilities;
 using TShockAPI;
@@ -127,7 +128,7 @@ namespace RegionVision {
         public void setFakeTile(int index, int x, int y) {
             if (x < 0 || y < 0 || x >= Main.maxTilesX || y >= Main.maxTilesY) return;
 
-            Tile fakeTile;
+            ITile fakeTile;
             if (Main.tile[x, y] == null) {
                 fakeTile = new Tile();
             } else {
