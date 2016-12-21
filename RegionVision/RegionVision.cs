@@ -119,7 +119,7 @@ namespace RegionVision {
             if (args.Parameters.Count < 1) {
                 args.Player.SendErrorMessage("Usage: /regionview <region name>");
                 return;
-            } 
+            }
 
             // Find the specified region.
             for (int pass = 1; pass <= 3 && tRegion == null && matches.Count == 0; pass++) {
@@ -442,7 +442,9 @@ namespace RegionVision {
                                         Region region = new Region(tRegion.Name, tRegion.Area, false);
                                         region.calculateArea(player.TSPlayer);
                                         player.regions.Add(region);
-                                        player.TSPlayer.SendMessage("You see region " + region.name + ".", textColour[region.colour - 13]);
+#if !SILENT
+										player.TSPlayer.SendMessage("You see region " + region.name + ".", textColour[region.colour - 13]);
+#endif
                                     }
                                 }
                             }
