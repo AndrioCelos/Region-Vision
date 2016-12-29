@@ -1,5 +1,10 @@
+Version 1.2.8.0 – 29 December 2016
+----------------------------------
+
+* Updated for TShock Mintaka prerelease 2 (thanks [Ruby Rose](https://github.com/deadsurgeon42)!)
+
 Version 1.2.7.2 – 29 November 2016
---------------------------------
+----------------------------------
 
 * Updated for API development version 1.26 and _Terraria_ 1.3.4.3.
 

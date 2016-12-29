@@ -38,14 +38,14 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="OTAPI">
-      <HintPath>D:\Software\TShock\_reference\OTAPI.dll</HintPath>
+      <HintPath>..\refs\OTAPI.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="TerrariaServer">
-      <HintPath>D:\Software\TShock\_reference\TerrariaServer.exe</HintPath>
+      <HintPath>..\refs\TerrariaServer.exe</HintPath>
     </Reference>
     <Reference Include="TShockAPI">
-      <HintPath>D:\Software\TShock\_reference\TShockAPI.dll</HintPath>
+      <HintPath>..\refs\TShockAPI.dll</HintPath>
     </Reference>
   </ItemGroup>
   <ItemGroup>
