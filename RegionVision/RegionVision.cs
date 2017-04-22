@@ -10,12 +10,12 @@ using TShockAPI;
 using TShockAPI.Hooks;
 
 namespace RegionVision {
-    [ApiVersion(2, 0)]
+    [ApiVersion(2, 1)]
     public class RegionVisionPlugin : TerrariaPlugin {
         /// <summary>The list of players being tracked by this plugin.</summary>
         public List<Player> players { get; }
 
-        public override Version Version => new Version(1, 2, 8, 0);
+        public override Version Version => new Version(1, 2, 9, 0);
         public override string Name => "Region Vision";
         public override string Author => "Andrio Celos";
         public override string Description => "See your regions.";
@@ -375,8 +375,8 @@ namespace RegionVision {
         public void giveItem(Player player, Item item) {
             int itemID = Item.NewItem((int) player.TSPlayer.X, (int) player.TSPlayer.Y, item.width, item.height, item.type, 1, true, 0, true);
             Main.item[itemID].owner = player.index;
-            NetMessage.SendData((int) PacketTypes.ItemDrop, -1, -1, "", itemID, 0f, 0f, 0f);
-            NetMessage.SendData((int) PacketTypes.ItemOwner, -1, -1, "", itemID, 0f, 0f, 0f);
+            NetMessage.SendData((int) PacketTypes.ItemDrop, -1, -1, null, itemID, 0f, 0f, 0f);
+            NetMessage.SendData((int) PacketTypes.ItemOwner, -1, -1, null, itemID, 0f, 0f, 0f);
         }
 
         private void onPlayerCommand(PlayerCommandEventArgs e) {
