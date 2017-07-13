@@ -1,7 +1,7 @@
-Version 1.2.9.0 - 29 December 2016
+Version 1.2.9.0 - 22 April 2017
 ----------------------------------
 
-* Updated for TShock Mintaka 4.3.23 and _Terraria_ 1.3.5.2 (thanks [Jujaga](https://github.com/jujaga)!)
+* Updated for TShock Mintaka 4.3.23 and _Terraria_ 1.3.5.3 (thanks [Jujaga](https://github.com/jujaga)!)
 
 Version 1.2.8.0 – 29 December 2016
 ----------------------------------
