@@ -1,5 +1,10 @@
-Region Vision
-=============
+# Region Vision
+![Version 1.2.9.0](https://img.shields.io/badge/Version-1.2.9.0-blue.svg)
+![API 2.1](https://img.shields.io/badge/API-2.1-green.svg)
+[![Build status](https://ci.appveyor.com/api/projects/status/vwtwaqfmpxrpdfwn?svg=true)](https://ci.appveyor.com/project/jujaga/region-vision)
+
+Introduction
+--------
 
 This is a [TShock](http://tshock.co/xf/) plugin that allows players to see region boundaries in the in-game world. The command `/rv <region name>` shows the boundary of that region using paint. Only the player using the command will see it; the tiles don't actually 'exist'. The region name can be entered in full, or only the start may be entered if this is not ambiguous.
 

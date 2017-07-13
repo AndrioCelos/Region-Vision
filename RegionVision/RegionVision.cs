@@ -1,21 +1,23 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Timers;
 using Microsoft.Xna.Framework;
 using Terraria;
+using Terraria.Localization;
 using TerrariaApi.Server;
 
 using TShockAPI;
 using TShockAPI.Hooks;
 
 namespace RegionVision {
-    [ApiVersion(2, 0)]
+    [ApiVersion(2, 1)]
     public class RegionVisionPlugin : TerrariaPlugin {
         /// <summary>The list of players being tracked by this plugin.</summary>
-        public List<Player> players { get; }
+        public List<Player> Players { get; }
 
-        public override Version Version => new Version(1, 2, 8, 0);
+        public override Version Version => Assembly.GetExecutingAssembly().GetName().Version;
         public override string Name => "Region Vision";
         public override string Author => "Andrio Celos";
         public override string Description => "See your regions.";
@@ -40,46 +42,52 @@ namespace RegionVision {
         private Timer refreshTimer = new Timer(5000);
 
         public RegionVisionPlugin(Main game) : base(game) {
-            players = new List<Player>();
+            Players = new List<Player>();
             Order = 1;
         }
 
         public override void Initialize() {
-            Command viewCommand = new Command(new List<string>(new string[] { "regionvision.regionview", "regionview" }),
-                commandView, new string[] { "regionview", "rv" });
-            viewCommand.AllowServer = false;
-            viewCommand.HelpDesc = new string[] { "Usage: /rv <region name>", "Shows you the boundary of the specified region" };
-            Commands.ChatCommands.Add(viewCommand);
+			Command viewCommand = new Command(new List<string>(new string[] { "regionvision.regionview", "regionview" }),
+				CommandView, new string[] { "regionview", "rv" })
+			{
+				AllowServer = false,
+				HelpDesc = new string[] { "Usage: /rv <region name>", "Shows you the boundary of the specified region" }
+			};
+			Commands.ChatCommands.Add(viewCommand);
 
-            Command clearCommand = new Command(new List<string>(new string[] { "regionvision.regionview", "regionview" }),
-                commandClear, new string[] { "regionclear", "rc" });
-            clearCommand.AllowServer = false;
-            clearCommand.HelpDesc = new string[] { "Usage: /rc", "Removes all region borders from your view" };
-            Commands.ChatCommands.Add(clearCommand);
+			Command clearCommand = new Command(new List<string>(new string[] { "regionvision.regionview", "regionview" }),
+				CommandClear, new string[] { "regionclear", "rc" })
+			{
+				AllowServer = false,
+				HelpDesc = new string[] { "Usage: /rc", "Removes all region borders from your view" }
+			};
+			Commands.ChatCommands.Add(clearCommand);
 
-            Command viewNearbyCommand = new Command(new List<string>(new string[] { "regionvision.regionviewnear", "regionviewnear" }),
-                commandViewNearby, new string[] { "regionviewnear", "rvn" });
-            viewNearbyCommand.AllowServer = false;
-            viewNearbyCommand.HelpDesc = new string[] { "Usage: /rvn", "Turns on or off automatic showing of regions near you" };
-            Commands.ChatCommands.Add(viewNearbyCommand);
+			Command viewNearbyCommand = new Command(new List<string>(new string[] { "regionvision.regionviewnear", "regionviewnear" }),
+				CommandViewNearby, new string[] { "regionviewnear", "rvn" })
+			{
+				AllowServer = false,
+				HelpDesc = new string[] { "Usage: /rvn", "Turns on or off automatic showing of regions near you" }
+			};
+			Commands.ChatCommands.Add(viewNearbyCommand);
 
             GetDataHandlers.TileEdit += TShockAPI.HandlerList<GetDataHandlers.TileEditEventArgs>.Create(OnTileEdit, HandlerPriority.High, false);
             TShockAPI.Hooks.RegionHooks.RegionCreated += RegionHooks_RegionCreated;
             TShockAPI.Hooks.RegionHooks.RegionDeleted += RegionHooks_RegionDeleted;
-            ServerApi.Hooks.ServerJoin.Register(this, onPlayerJoin);
-            ServerApi.Hooks.ServerLeave.Register(this, onPlayerLeave);
-            TShockAPI.Hooks.PlayerHooks.PlayerCommand += onPlayerCommand;
+            ServerApi.Hooks.ServerJoin.Register(this, OnPlayerJoin);
+            ServerApi.Hooks.ServerLeave.Register(this, OnPlayerLeave);
+            TShockAPI.Hooks.PlayerHooks.PlayerCommand += OnPlayerCommand;
 
             refreshTimer.AutoReset = false;
-            refreshTimer.Elapsed += refreshTimer_Elapsed;
+            refreshTimer.Elapsed += RefreshTimerElapsed;
         }
 
         void RegionHooks_RegionDeleted(RegionHooks.RegionDeletedEventArgs args) {
             if (args.Region.WorldID != Main.worldID.ToString()) return;
 
             // If any players were viewing this region, clear its border.
-            lock (players) {
-                foreach (Player player in players) {
+            lock (Players) {
+                foreach (Player player in Players) {
                     for (int i = 0; i < player.regions.Count; i++) {
                         Region region = player.regions[i];
                         if (region.name.Equals(args.Region.Name)) {
@@ -102,17 +110,17 @@ namespace RegionVision {
         }
         void RegionHooks_RegionCreated(RegionHooks.RegionCreatedEventArgs args) {
             refreshTimer.Stop();
-            refreshTimer_Elapsed(this, null);
+            RefreshTimerElapsed(this, null);
         }
 
         /// <summary>Returns the <see cref="Player"/> instance for the player with a given index number.</summary>
-        public Player findPlayer(int index) {
-            foreach (Player player in players)
+        public Player FindPlayer(int index) {
+            foreach (Player player in Players)
                 if (player.index == index) return player;
             return null;
         }
 
-        private void commandView(CommandArgs args) {
+        private void CommandView(CommandArgs args) {
             TShockAPI.DB.Region tRegion = null;
             List<TShockAPI.DB.Region> matches = new List<TShockAPI.DB.Region>();
 
@@ -165,8 +173,8 @@ namespace RegionVision {
                 return;
             }
 
-            lock (players) {
-                Player player = findPlayer(args.Player.Index);
+            lock (Players) {
+                Player player = FindPlayer(args.Player.Index);
                 if (player == null) return;
 
                 // Register this region.
@@ -223,18 +231,18 @@ namespace RegionVision {
             }
         }
 
-        private void commandClear(CommandArgs args) {
-            lock (players) {
-                Player player = findPlayer(args.Player.Index);
+        private void CommandClear(CommandArgs args) {
+            lock (Players) {
+                Player player = FindPlayer(args.Player.Index);
                 if (player == null) return;
                 player.viewingNearby = false;
-                clearRegions(player);
+                ClearRegions(player);
             }
         }
 
-        private void commandViewNearby(CommandArgs args) {
-            lock (players) {
-                Player player = findPlayer(args.Player.Index);
+        private void CommandViewNearby(CommandArgs args) {
+            lock (Players) {
+                Player player = FindPlayer(args.Player.Index);
                 if (player == null) return;
 
                 if (player.viewingNearby) {
@@ -251,7 +259,7 @@ namespace RegionVision {
 
         /// <summary>Removes all region borders from a player's view.</summary>
         /// <param name="player">The player to reset</param>
-        public void clearRegions(Player player) {
+        public void ClearRegions(Player player) {
             foreach (Region region in player.regions)
                 region.refresh(player.TSPlayer);
             player.regions.Clear();
@@ -263,8 +271,8 @@ namespace RegionVision {
                 e.Action == GetDataHandlers.EditAction.KillWall) return;
             if (e.Action == GetDataHandlers.EditAction.PlaceTile && e.EditData == Terraria.ID.TileID.MagicalIceBlock) return;
 
-            lock (players) {
-                Player player = findPlayer(e.Player.Index);
+            lock (Players) {
+                Player player = FindPlayer(e.Player.Index);
                 if (player == null) return;
                 if (player.regions.Count == 0) return;
 
@@ -278,15 +286,15 @@ namespace RegionVision {
                         //clearRegions(player);
                         break;
                     }
-                    if ((e.Action == GetDataHandlers.EditAction.PlaceTile || e.Action == GetDataHandlers.EditAction.PlaceWall) && !tileValidityCheck(region, e.X, e.Y, e.Action)) {
+                    if ((e.Action == GetDataHandlers.EditAction.PlaceTile || e.Action == GetDataHandlers.EditAction.PlaceWall) && !TileValidityCheck(region, e.X, e.Y, e.Action)) {
                         e.Handled = true;
                         player.TSPlayer.SendData(PacketTypes.TileSendSquare, "", 1, e.X, e.Y, 0, 0);
-                        if (e.Action == GetDataHandlers.EditAction.PlaceTile) giveTile(player, e);
-                        if (e.Action == GetDataHandlers.EditAction.PlaceWall) giveWall(player, e);
+                        if (e.Action == GetDataHandlers.EditAction.PlaceTile) GiveTile(player, e);
+                        if (e.Action == GetDataHandlers.EditAction.PlaceWall) GiveWall(player, e);
                         break;
                     }
                 }
-                if (e.Handled) clearRegions(player);
+                if (e.Handled) ClearRegions(player);
             }
         }
 
@@ -296,7 +304,7 @@ namespace RegionVision {
         /// <param name="y">The y coordinate of the edited tile.</param>
         /// <param name="editType">The type of the edit.</param>
         /// <returns>true if the edit was valid; false if it wasn't.</returns>
-        public bool tileValidityCheck(Region region, int x, int y, GetDataHandlers.EditAction editType) {
+        public bool TileValidityCheck(Region region, int x, int y, GetDataHandlers.EditAction editType) {
             // Check if there's a wall or another tile next to this tile.
             if (editType == GetDataHandlers.EditAction.PlaceWall) {
                 if (Main.tile[x, y] != null && Main.tile[x, y].active()) return true;
@@ -323,16 +331,16 @@ namespace RegionVision {
             return true;
         }
 
-        private void onPlayerJoin(JoinEventArgs e) {
-            lock (players)
-                players.Add(new Player(e.Who));
+        private void OnPlayerJoin(JoinEventArgs e) {
+            lock (Players)
+                Players.Add(new Player(e.Who));
         }
 
-        private void onPlayerLeave(LeaveEventArgs e) {
-            lock (players)
-                for (int i = 0; i < players.Count; i++) {
-                    if (players[i].index == e.Who) {
-                        players.RemoveAt(i);
+        private void OnPlayerLeave(LeaveEventArgs e) {
+            lock (Players)
+                for (int i = 0; i < Players.Count; i++) {
+                    if (Players[i].index == e.Who) {
+                        Players.RemoveAt(i);
                         break;
                     }
                 }
@@ -341,7 +349,7 @@ namespace RegionVision {
         /// <summary>Returns the item used to attempt a rejected foreground tile edit to the player.</summary>
         /// <param name="player">The player attempting the edit</param>
         /// <param name="e">The data from the edit event</param>
-        public void giveTile(Player player, GetDataHandlers.TileEditEventArgs e) {
+        public void GiveTile(Player player, GetDataHandlers.TileEditEventArgs e) {
             Item item = new Item(); bool found = false;
             for (int i = 1; i <= Terraria.ID.ItemID.Count; i++) {
                 item.SetDefaults(i, true);
@@ -351,13 +359,13 @@ namespace RegionVision {
                     break;
                 }
             }
-            if (found) giveItem(player, item);
+            if (found) GiveItem(player, item);
         }
 
         /// <summary>Returns the item used to attempt a rejected background wall edit to the player.</summary>
         /// <param name="player">The player attempting the edit</param>
         /// <param name="e">The data from the edit event</param>
-        public void giveWall(Player player, GetDataHandlers.TileEditEventArgs e) {
+        public void GiveWall(Player player, GetDataHandlers.TileEditEventArgs e) {
             Item item = new Item(); bool found = false;
             for (int i = 1; i <= Terraria.ID.ItemID.Count; i++) {
                 item.SetDefaults(i, true);
@@ -366,32 +374,32 @@ namespace RegionVision {
                     break;
                 }
             }
-            if (found) giveItem(player, item);
+            if (found) GiveItem(player, item);
         }
 
         /// <summary>Gives an item to a player.</summary>
         /// <param name="player">The player to receive the item</param>
         /// <param name="item">The item to give</param>
-        public void giveItem(Player player, Item item) {
+        public void GiveItem(Player player, Item item) {
             int itemID = Item.NewItem((int) player.TSPlayer.X, (int) player.TSPlayer.Y, item.width, item.height, item.type, 1, true, 0, true);
             Main.item[itemID].owner = player.index;
-            NetMessage.SendData((int) PacketTypes.ItemDrop, -1, -1, "", itemID, 0f, 0f, 0f);
-            NetMessage.SendData((int) PacketTypes.ItemOwner, -1, -1, "", itemID, 0f, 0f, 0f);
+            NetMessage.SendData((int) PacketTypes.ItemDrop, -1, -1, NetworkText.Empty, itemID, 0f, 0f, 0f);
+            NetMessage.SendData((int) PacketTypes.ItemOwner, -1, -1, NetworkText.Empty, itemID, 0f, 0f, 0f);
         }
 
-        private void onPlayerCommand(PlayerCommandEventArgs e) {
+        private void OnPlayerCommand(PlayerCommandEventArgs e) {
             if (e.Parameters.Count >= 2 && e.CommandName.ToLower() == "region" && new string[] {"delete", "resize", "expand"}.Contains(e.Parameters[0].ToLower())) {
                 if (Commands.ChatCommands.Any(c => c.HasAlias("region") && c.CanRun(e.Player)))
                     refreshTimer.Interval = 1500;
             }
         }
 
-        private void refreshTimer_Elapsed(object sender, ElapsedEventArgs e) {
+        private void RefreshTimerElapsed(object sender, ElapsedEventArgs e) {
             bool anyRegions = false;
 
             // Check for regions that have changed.
-            lock (players) {
-                foreach (Player player in players) {
+            lock (Players) {
+                foreach (Player player in Players) {
                     bool refreshFlag = false;
 
                     for (int i = 0; i < player.regions.Count; i++) {
@@ -405,7 +413,7 @@ namespace RegionVision {
                             player.regions.RemoveAt(i--);
                         } else {
                             Rectangle newArea = tRegion.Area;
-                            if (!region.command && (!player.viewingNearby || !isPlayerNearby(player.TSPlayer, region.area))) {
+                            if (!region.command && (!player.viewingNearby || !IsPlayerNearby(player.TSPlayer, region.area))) {
                                 // The player is no longer near the region.
                                 refreshFlag = true;
                                 region.refresh(player.TSPlayer);
@@ -436,7 +444,7 @@ namespace RegionVision {
                         // Search for nearby regions
                         foreach (TShockAPI.DB.Region tRegion in TShock.Regions.Regions) {
                             if (tRegion.WorldID == Main.worldID.ToString() && tRegion.Area.Width >= 0 && tRegion.Area.Height >= 0) {
-                                if (isPlayerNearby(player.TSPlayer, tRegion.Area)) {
+                                if (IsPlayerNearby(player.TSPlayer, tRegion.Area)) {
                                     if (!player.regions.Any(r => r.name == tRegion.Name)) {
                                         refreshFlag = true;
                                         Region region = new Region(tRegion.Name, tRegion.Area, false);
@@ -472,7 +480,7 @@ namespace RegionVision {
         /// <param name="tPlayer">The player to check</param>
         /// <param name="area">The region to check</param>
         /// <returns>true if the player is within 100 tiles of the region; false otherwise</returns>
-        public static bool isPlayerNearby(TSPlayer tPlayer, Rectangle area) {
+        public static bool IsPlayerNearby(TSPlayer tPlayer, Rectangle area) {
             int playerX = (int) (tPlayer.X / 16);
             int playerY = (int) (tPlayer.Y / 16);
 
