@@ -10,12 +10,12 @@ using TShockAPI;
 using TShockAPI.Hooks;
 
 namespace RegionVision {
-    [ApiVersion(2, 0)]
+    [ApiVersion(2, 1)]
     public class RegionVisionPlugin : TerrariaPlugin {
         /// <summary>The list of players being tracked by this plugin.</summary>
         public List<Player> players { get; }
 
-        public override Version Version => new Version(1, 2, 8, 0);
+        public override Version Version => new Version(1, 3, 0, 0);
         public override string Name => "Region Vision";
         public override string Author => "Andrio Celos";
         public override string Description => "See your regions.";
@@ -366,18 +366,16 @@ namespace RegionVision {
                     break;
                 }
             }
-            if (found) giveItem(player, item);
+            if (found) {
+                item.stack = 1;
+                giveItem(player, item);
+            }
         }
 
         /// <summary>Gives an item to a player.</summary>
         /// <param name="player">The player to receive the item</param>
         /// <param name="item">The item to give</param>
-        public void giveItem(Player player, Item item) {
-            int itemID = Item.NewItem((int) player.TSPlayer.X, (int) player.TSPlayer.Y, item.width, item.height, item.type, 1, true, 0, true);
-            Main.item[itemID].owner = player.index;
-            NetMessage.SendData((int) PacketTypes.ItemDrop, -1, -1, "", itemID, 0f, 0f, 0f);
-            NetMessage.SendData((int) PacketTypes.ItemOwner, -1, -1, "", itemID, 0f, 0f, 0f);
-        }
+        public void giveItem(Player player, Item item) => player.TSPlayer.GiveItem(item.type, 1);
 
         private void onPlayerCommand(PlayerCommandEventArgs e) {
             if (e.Parameters.Count >= 2 && e.CommandName.ToLower() == "region" && new string[] {"delete", "resize", "expand"}.Contains(e.Parameters[0].ToLower())) {
@@ -443,7 +441,7 @@ namespace RegionVision {
                                         region.calculateArea(player.TSPlayer);
                                         player.regions.Add(region);
 #if !SILENT
-										player.TSPlayer.SendMessage("You see region " + region.name + ".", textColour[region.colour - 13]);
+                                        player.TSPlayer.SendMessage("You see region " + region.name + ".", textColour[region.colour - 13]);
 #endif
                                     }
                                 }
